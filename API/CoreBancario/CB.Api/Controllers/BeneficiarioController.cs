@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using CB.AplicationCore.Interfaces;
+﻿using CB.AplicationCore.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using CB.Common.Enums;
 
 namespace CB.Api.Controllers
 {
@@ -19,12 +16,19 @@ namespace CB.Api.Controllers
             this.beneficiarioService = beneficiarioService;
         }
 
-        [HttpGet("{beneficiarioId}")]
-        public IActionResult GetBeneficiarioByBeneficiarioId(int beneficiarioId)
+        [HttpGet("{clienteBeneficiarioId}")]
+        public IActionResult GetBeneficiarioByBeneficiarioId(int clienteBeneficiarioId)
         {
-            var result = beneficiarioService.GetBeneficiarioByBeneficiarioId(beneficiarioId);
+            var result = beneficiarioService.GetBeneficiarioByClienteBeneficiarioId(clienteBeneficiarioId);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
         [HttpGet("cliente/{clienteId}")]
@@ -32,7 +36,14 @@ namespace CB.Api.Controllers
         {
             var result = beneficiarioService.GetListBeneficiariosByClienteId(clienteId);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
 }

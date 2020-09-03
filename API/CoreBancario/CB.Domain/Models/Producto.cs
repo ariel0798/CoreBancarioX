@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace CB.Domain.Models
 {
@@ -7,6 +6,10 @@ namespace CB.Domain.Models
     {
         public Producto()
         {
+            Beneficiario = new HashSet<Beneficiario>();
+            CuentaAhorro = new HashSet<CuentaAhorro>();
+            HistorialTransaccion = new HashSet<HistorialTransaccion>();
+            TarjetaCredito = new HashSet<TarjetaCredito>();
             TransaccionProductoDestino = new HashSet<Transaccion>();
             TransaccionProductoOrigen = new HashSet<Transaccion>();
         }
@@ -18,6 +21,10 @@ namespace CB.Domain.Models
         public string Alias { get; set; }
 
         public virtual Cliente Titular { get; set; }
+        public virtual ICollection<Beneficiario> Beneficiario { get; set; }
+        public virtual ICollection<CuentaAhorro> CuentaAhorro { get; set; }
+        public virtual ICollection<HistorialTransaccion> HistorialTransaccion { get; set; }
+        public virtual ICollection<TarjetaCredito> TarjetaCredito { get; set; }
         public virtual ICollection<Transaccion> TransaccionProductoDestino { get; set; }
         public virtual ICollection<Transaccion> TransaccionProductoOrigen { get; set; }
     }

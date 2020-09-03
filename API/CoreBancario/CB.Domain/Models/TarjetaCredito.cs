@@ -4,6 +4,7 @@ namespace CB.Domain.Models
 {
     public partial class TarjetaCredito
     {
+        public int TarjetaCreditoId { get; set; }
         public int ProductoId { get; set; }
         public DateTime FechaCorte { get; set; }
         public int DiasLimitePago { get; set; }
@@ -12,5 +13,7 @@ namespace CB.Domain.Models
         public decimal PagoMinimo { get; set; }
         public decimal PagoCorte { get; set; }
         public string Estado { get; set; }
+
+        public virtual Producto Producto { get; set; }
     }
 }

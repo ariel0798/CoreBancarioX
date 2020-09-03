@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using CB.AplicationCore.Interfaces;
 using CB.Common.DTOs.DtoIn;
+using CB.Common.Enums;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,28 +18,34 @@ namespace CB.Api.Controllers
             this.transaccionService = transaccionService;
         }
 
-        [HttpGet("{transaccionId}")]
-        public IActionResult GetTransaccionByTransaccionId(int transaccionId)
-        {
-            var result = transaccionService.GetTransaccionByTransaccionId(transaccionId);
-
-            return Ok(result);
-        }
-
-        [HttpGet("producto-origen/{productoOrigenId}")]
-        public IActionResult GetListTransaccionesByProductoOrigenId(int productoOrigenId)
-        {
-            var result = transaccionService.GetListTransaccionesByProductoOrigenId(productoOrigenId);
-
-            return Ok(result);
-        }
-
         [HttpPost]
         public IActionResult CreateTransaccion(TransaccionDtoIn transaccionDto)
         {
             var result = transaccionService.CreateTransaction(transaccionDto);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+
+        [HttpPost("rowuid/{rowUidTransaccion}/clave/{clave}")]
+        public IActionResult EjecutarTransaccion(Guid rowUidTransaccion, int clave)
+        {
+            var result = transaccionService.EjecutarTransaccion(rowUidTransaccion, clave);
+
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
 }

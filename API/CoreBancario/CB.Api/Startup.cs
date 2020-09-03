@@ -11,6 +11,7 @@ using CB.AplicationCore.Validations;
 using CB.Domain.Context;
 using CB.Domain.Interfaces;
 using CB.Domain.Repositories;
+using Hangfire;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -37,6 +38,8 @@ namespace CB.Api
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddHangfire(x => x.UseSqlServerStorage(Configuration.GetConnectionString("HangFire")));
+            services.AddHangfireServer();
             services.AddControllers();
 
             services.AddControllers(options =>
@@ -74,6 +77,12 @@ namespace CB.Api
 
             services.AddScoped<ITransaccionService, TransaccionService>();
             services.AddScoped<ITransaccionValidationService, TransaccionValidationService>();
+
+            services.AddScoped<IHistorialTransaccionService, HistorialTransaccionService>();
+            services.AddScoped<IHistorialTransaccionValidationService, HistorialTransaccionValidationService>();
+
+            services.AddScoped<IHangFireJobsService, HangFireJobsService>();
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -84,6 +93,7 @@ namespace CB.Api
                 app.UseDeveloperExceptionPage();
             }
 
+            app.UseHangfireDashboard();
             app.UseHttpsRedirection();
 
             app.UseSwagger();

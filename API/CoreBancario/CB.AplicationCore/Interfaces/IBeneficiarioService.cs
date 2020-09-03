@@ -7,6 +7,6 @@ namespace CB.AplicationCore.Interfaces
     public interface IBeneficiarioService
     {
         ServiceResult<List<BeneficiarioDtoOut>> GetListBeneficiariosByClienteId(int clienteId);
-        ServiceResult<BeneficiarioDtoOut> GetBeneficiarioByBeneficiarioId(int beneficiarioId);
+        ServiceResult<BeneficiarioDtoOut> GetBeneficiarioByClienteBeneficiarioId(int clienteBeneficiarioId);
     }
 }

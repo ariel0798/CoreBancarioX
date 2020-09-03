@@ -76,15 +76,15 @@ namespace CB.AplicationCore.Services
             }
         }
 
-        public ServiceResult<BeneficiarioDtoOut> GetBeneficiarioByBeneficiarioId(int beneficiarioId)
+        public ServiceResult<BeneficiarioDtoOut> GetBeneficiarioByClienteBeneficiarioId(int clienteBeneficiarioId)
         {
             try
             {
-                if (!clienteValidationService.IsExistingClienteId(beneficiarioId))
+                if (!clienteValidationService.IsExistingClienteId(clienteBeneficiarioId))
                     throw new ValidationException(BeneficiarioMessageConstants.NotExistingBeneficiarioId);
 
                 var beneficiario = masterRepository.Beneficiario.FindByCondition(b =>
-                     b.ClienteBeneficiarioId == beneficiarioId).FirstOrDefault();
+                     b.ClienteBeneficiarioId == clienteBeneficiarioId).FirstOrDefault();
 
                 if(beneficiario == null)
                     throw new ValidationException(BeneficiarioMessageConstants.NotExistingBeneficiarioId);

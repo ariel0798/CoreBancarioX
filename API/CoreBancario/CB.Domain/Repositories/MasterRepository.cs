@@ -12,6 +12,8 @@ namespace CB.Domain.Repositories
         private IProductoRepository productoRepository;
         private ITarjetaCreditoRepository tarjetaCreditoRepository;
         private ITransaccionRepository transaccionRepository;
+        private ITarjetaClaveRepository tarjetaClaveRepository;
+        private IHistorialTransaccionRepository historialTransaccionRepository;
 
         public MasterRepository(CoreBancoDbContext context)
         {
@@ -81,6 +83,27 @@ namespace CB.Domain.Repositories
                     transaccionRepository = new TransaccionRepository(context);
 
                 return transaccionRepository;
+            }
+        }
+        public IHistorialTransaccionRepository HistorialTransaccion
+        {
+            get
+            {
+                if (historialTransaccionRepository == null)
+                    historialTransaccionRepository = new HistorialTransaccionRepository(context);
+
+                return historialTransaccionRepository;
+            }
+        }
+
+        public ITarjetaClaveRepository TarjetaClave
+        {
+            get
+            {
+                if (tarjetaClaveRepository == null)
+                    tarjetaClaveRepository = new TarjetaClaveRepository(context);
+
+                return tarjetaClaveRepository;
             }
         }
 

@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using CB.AplicationCore.Interfaces;
+﻿using CB.AplicationCore.Interfaces;
+using CB.Common.Enums;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,7 +21,14 @@ namespace CB.Api.Controllers
         {
             var result = tarjetaCreditoService.GetTarjetaCreditoByProductoId(productoId);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
 }

@@ -1,4 +1,6 @@
 ﻿using CB.AplicationCore.Interfaces;
+using CB.Common.Enums;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CB.Api.Controllers
@@ -19,7 +21,14 @@ namespace CB.Api.Controllers
         {
             var result = clienteService.GetClienteByClienteId(clienteId);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
         [HttpGet("cedula/{cedula}")]
@@ -27,7 +36,14 @@ namespace CB.Api.Controllers
         {
             var result = clienteService.GetClienteByCedula(cedula);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
 }

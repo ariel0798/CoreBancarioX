@@ -1,5 +1,6 @@
 ﻿using CB.AplicationCore.Interfaces.Validations;
 using CB.Domain.Interfaces;
+using System;
 using System.Linq;
 
 namespace CB.AplicationCore.Validations
@@ -21,22 +22,15 @@ namespace CB.AplicationCore.Validations
             return isExisting;
         
         }
-        /*
-        public bool HasEnoughtMontoDisponible(int productoId,decimal monto)
+
+        public bool IsExistingRowUid(Guid rowUid)
         {
-            isExisting
-            var producto = masterRepository.Producto.FindByCondition(p =>
-                p.ProductoId == productoId).First();
-
-            //Como saber que producto es para mirarle el monto
-            if(producto.TipoProducto == "1")
-            {
-
-            }
-            
+            var isExisting = masterRepository.Transaccion.GetAll().Any(t =>
+                t.RowUid == rowUid);
 
             return isExisting;
+
         }
-        */
+
     }
 }

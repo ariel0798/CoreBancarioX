@@ -1,4 +1,6 @@
 ﻿using CB.AplicationCore.Interfaces;
+using CB.Common.Enums;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CB.Api.Controllers
@@ -18,14 +20,28 @@ namespace CB.Api.Controllers
         {
             var result = productoService.GetProductoByProductoId(productoId);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
         [HttpGet("cliente/{clienteId}/tipo-producto/{tipoProducto}")]
         public IActionResult GetProductoByProductoId(int clienteId,int tipoProducto)
         {
             var result = productoService.GetListProductosByClienteIdAndTipoProducto(clienteId, tipoProducto);
 
-            return Ok(result);
+            if (result.Code == ResponseCode.Ok)
+                return Ok(result);
+
+            else if (result.Code == ResponseCode.Warning)
+                return BadRequest(result);
+
+            else
+                return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
 }

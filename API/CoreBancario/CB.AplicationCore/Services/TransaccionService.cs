@@ -9,7 +9,6 @@ using CB.Common.Models;
 using CB.Domain.Interfaces;
 using CB.Domain.Models;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 
@@ -21,93 +20,20 @@ namespace CB.AplicationCore.Services
         readonly IMasterRepository masterRepository;
         readonly IMapper mapper;
         readonly ITransaccionValidationService transaccionValidationService;
-        readonly IGeneralValidationService generalValidationService;
         readonly IProductoValidationService productoValidationService;
 
         public TransaccionService(IMasterRepository masterRepository, IMapper mapper, 
-            ITransaccionValidationService transaccionValidationService, IClienteValidationService clienteValidationService,
-            IProductoValidationService productoValidationService, IGeneralValidationService generalValidationService)
+            ITransaccionValidationService transaccionValidationService,
+            IProductoValidationService productoValidationService)
         {
             this.masterRepository = masterRepository;
             this.mapper = mapper;
             this.transaccionValidationService = transaccionValidationService;
-            this.generalValidationService = generalValidationService;
             this.productoValidationService = productoValidationService;
         }
 
-        private TransaccionDtoOut MapTransaccionToDto(Transaccion transaccion)
-        {
-            var productoOrigen = masterRepository.Producto.FindByCondition(p =>
-                p.ProductoId == transaccion.ProductoOrigenId).FirstOrDefault();
 
-            var productoDestino = masterRepository.Producto.FindByCondition(p =>
-                p.ProductoId == transaccion.ProductoDestinoId).FirstOrDefault();
-
-            var transaccionDto = mapper.Map<TransaccionDtoOut>(transaccion);
-            transaccionDto.ProductoOrigen = mapper.Map<ProductoDtoOut>(productoOrigen);
-            transaccionDto.ProductoDestino = mapper.Map<ProductoDtoOut>(productoDestino);
-
-            return transaccionDto;
-        }
-
-        public ServiceResult<TransaccionDtoOut> GetTransaccionByTransaccionId(int transaccionId)
-        {
-            try
-            {
-                if (!transaccionValidationService.IsExistingTransaccionId(transaccionId))
-                    throw new ValidationException(TransaccionMessageConstants.NotExistingTransaccionId);
-
-                var transaccion = masterRepository.Transaccion.FindByCondition(t =>
-                    t.TransaccionId == transaccionId).FirstOrDefault() ;
-
-                var transaccionDto = MapTransaccionToDto(transaccion);
-
-                return ServiceResult<TransaccionDtoOut>.ResultOk(transaccionDto);
-            }
-            catch (ValidationException e)
-            {
-                return ServiceResult<TransaccionDtoOut>.ResultFailed(ResponseCode.Warning, e.Message);
-            }
-            catch (Exception e)
-            {
-                return ServiceResult<TransaccionDtoOut>.ResultFailed(ResponseCode.Error, e.Message);
-            }
-        }
-
-        public ServiceResult<List<TransaccionDtoOut>> GetListTransaccionesByProductoOrigenId(int productoId)
-        {
-            try
-            {
-                if (!productoValidationService.IsExistingProductoId(productoId))
-                    throw new ValidationException(ProductoMessageConstants.NotExistingProductoId);
-
-                var listTransacciones = masterRepository.Transaccion.FindByCondition(t =>
-                    t.ProductoOrigenId == productoId);
-
-                if(listTransacciones.Count() == 0)
-                    throw new ValidationException(TransaccionMessageConstants.NotExistingTransaccionesinProductoOrigen);
-
-                var listTransaccionesDto = new List<TransaccionDtoOut>();
-
-                foreach (var transaccion in listTransacciones)
-                {
-                    var transaccionDto = MapTransaccionToDto(transaccion);
-                    listTransaccionesDto.Add(transaccionDto);
-                }
-
-                return ServiceResult<List<TransaccionDtoOut>>.ResultOk(listTransaccionesDto);
-            }
-            catch (ValidationException e)
-            {
-                return ServiceResult<List<TransaccionDtoOut>>.ResultFailed(ResponseCode.Warning, e.Message);
-            }
-            catch (Exception e)
-            {
-                return ServiceResult<List<TransaccionDtoOut>>.ResultFailed(ResponseCode.Error, e.Message);
-            }
-        }
-
-        public ServiceResult<bool> CreateTransaction(TransaccionDtoIn transaccionDto) 
+        public ServiceResult<TransaccionResponseDtoOut> CreateTransaction(TransaccionDtoIn transaccionDto) 
         {
             try
             {
@@ -120,64 +46,105 @@ namespace CB.AplicationCore.Services
                 if (transaccionDto.Monto <= 0)
                     throw new ValidationException(TransaccionMessageConstants.WrongMonto);
 
-                //validar los tipos de transaccion
-                if (generalValidationService.IsEmptyText(transaccionDto.TipoTransaccion))
-                    throw new ValidationException(TransaccionMessageConstants.EmptyTipoTransaccion);
+                var transaccion = NewTransaccion(transaccionDto);
 
-                transaccionDto.TipoTransaccion = generalValidationService.GetRewrittenTextFirstCapitalLetter(transaccionDto.TipoTransaccion);
+                var numeroClave = masterRepository.TarjetaClave.FindByCondition(t =>
+                    t.TarjetaClaveId == transaccion.TarjetaClaveId).First().NumeroClave;
+                var transaccionResponseDto = new TransaccionResponseDtoOut()
+                {
+                    RowUiDTransaccion = transaccion.RowUid,
+                    NumeroClave = numeroClave
+                };
 
-                //Proceso de cobro 
+                masterRepository.Transaccion.Create(transaccion);
+                masterRepository.Save();
+
+                return ServiceResult<TransaccionResponseDtoOut>.ResultOk(transaccionResponseDto);
+            }
+            catch (ValidationException e)
+            {
+                return ServiceResult<TransaccionResponseDtoOut>.ResultFailed(ResponseCode.Warning, e.Message);
+            }
+            catch (Exception e)
+            {
+                return ServiceResult<TransaccionResponseDtoOut>.ResultFailed(ResponseCode.Error, e.Message);
+            }
+        }
+
+        public ServiceResult<bool> EjecutarTransaccion(Guid rowUidTransaccion, int clave)
+        {
+            try
+            {
+                if (!transaccionValidationService.IsExistingRowUid(rowUidTransaccion))
+                    throw new ValidationException(TransaccionMessageConstants.NotExistingRowUid);
+
+                var transaccion = masterRepository.Transaccion.FindByCondition(t =>
+                    t.RowUid == rowUidTransaccion).FirstOrDefault();
 
                 var productoOrigen = masterRepository.Producto.FindByCondition(p =>
-                    p.ProductoId == transaccionDto.ProductoOrigenId).First();
+               p.ProductoId == transaccion.ProductoOrigenId).First();
 
                 var productoDestino = masterRepository.Producto.FindByCondition(p =>
-                    p.ProductoId == transaccionDto.ProductoDestinoId).First();
+                    p.ProductoId == transaccion.ProductoDestinoId).First();
 
-                var tipoProducto = Convert.ToInt32(productoOrigen.TipoProducto);
+                ValidarTiposProductos(productoOrigen, productoDestino);
 
-                if (!productoValidationService.IsExistingTipoProducto(tipoProducto))
-                    throw new ValidationException(TransaccionMessageConstants.WrongTipoProductoOrigen);
 
-                tipoProducto = Convert.ToInt32(productoDestino.TipoProducto);
+                if (transaccion.Estado == EstadoTransaccion.Rechazada)
+                    throw new ValidationException(TransaccionMessageConstants.TransaccionRechazada + transaccion.Comentario);
 
-                if (!productoValidationService.IsExistingTipoProducto(tipoProducto))
-                    throw new ValidationException(TransaccionMessageConstants.WrongTipoProductoDestino);
+                if (transaccion.Estado == EstadoTransaccion.Procesada)
+                    throw new ValidationException(TransaccionMessageConstants.TransaccionProcesada);
 
-                //validar monto a cobrar por transaccion
+                if (transaccion.Estado != EstadoTransaccion.Pendiente)
+                    throw new ValidationException(TransaccionMessageConstants.EstadoTransaccionErroneo);
 
-                //debitar monto
-                if(productoOrigen.TipoProducto == ((int)TipoProducto.CuentaAhorro))
+                TimeSpan span = (DateTime.Now - transaccion.FechaTransaccion);
+                int minutosTransaccion = (int)span.TotalMinutes;
+
+                if (minutosTransaccion >= 1)
+                    CancelarTransaccion(transaccion, TransaccionMessageConstants.TiempoClaveAgotado);
+
+                int clienteId = productoOrigen.TitularId;
+
+                int claveRequerida = masterRepository.TarjetaClave.FindByCondition(t =>
+                    t.TarjetaClaveId == transaccion.TarjetaClaveId && t.ClienteId == clienteId).FirstOrDefault().Clave;
+
+                if (clave != claveRequerida)
+                    throw new ValidationException(TransaccionMessageConstants.WrongClave);
+
+
+                //Debito
+                if (productoOrigen.TipoProducto == ((int)TipoProducto.CuentaAhorro))
                 {
-                    var cuentaAhorro = masterRepository.CuentaAhorro.FindByCondition(c => 
+                    var cuentaAhorro = masterRepository.CuentaAhorro.FindByCondition(c =>
                     c.ProductoId == productoOrigen.ProductoId).First();
 
-                    //Se crea registro de transaccion con fondo insuficiente?
-                    if (cuentaAhorro.Monto < transaccionDto.Monto)
-                        throw new ValidationException(TransaccionMessageConstants.MontoInsuficiente);
+                    if (cuentaAhorro.Monto < transaccion.Monto)
+                        CancelarTransaccion(transaccion, TransaccionMessageConstants.MontoInsuficiente);
 
-                    cuentaAhorro.Monto -= transaccionDto.Monto;
+                    cuentaAhorro.Monto -= transaccion.Monto;
                     masterRepository.CuentaAhorro.Update(cuentaAhorro);
                 }
-                else if(productoOrigen.TipoProducto == ((int)TipoProducto.TarjetaCredito))
+                else if (productoOrigen.TipoProducto == ((int)TipoProducto.TarjetaCredito))
                 {
                     var tarjetaCredito = masterRepository.TarjetaCredito.FindByCondition(t =>
                         t.ProductoId == productoOrigen.ProductoId).FirstOrDefault();
 
-                    if(tarjetaCredito.Balance < transaccionDto.Monto)
-                        throw new ValidationException(TransaccionMessageConstants.MontoInsuficiente);
+                    if (tarjetaCredito.Balance < transaccion.Monto)
+                        CancelarTransaccion(transaccion, TransaccionMessageConstants.MontoInsuficiente);
 
-                    tarjetaCredito.Balance -= transaccionDto.Monto;
+                    tarjetaCredito.Balance -= transaccion.Monto;
                     masterRepository.TarjetaCredito.Update(tarjetaCredito);
                 }
 
-                //acreditar monto
+                //Credito
                 if (productoDestino.TipoProducto == ((int)TipoProducto.CuentaAhorro))
                 {
                     var cuentaAhorro = masterRepository.CuentaAhorro.FindByCondition(c =>
                     c.ProductoId == productoDestino.ProductoId).FirstOrDefault();
 
-                    cuentaAhorro.Monto += transaccionDto.Monto;
+                    cuentaAhorro.Monto += transaccion.Monto;
                     masterRepository.CuentaAhorro.Update(cuentaAhorro);
                 }
                 else if (productoDestino.TipoProducto == ((int)TipoProducto.TarjetaCredito))
@@ -185,19 +152,69 @@ namespace CB.AplicationCore.Services
                     var tarjetaCredito = masterRepository.TarjetaCredito.FindByCondition(t =>
                         t.ProductoId == productoDestino.ProductoId).FirstOrDefault();
 
-                    tarjetaCredito.Balance += transaccionDto.Monto;
-                    masterRepository.TarjetaCredito.Update(tarjetaCredito); 
+                    tarjetaCredito.Balance += transaccion.Monto;
+
+                    if (tarjetaCredito.Balance > tarjetaCredito.LimiteCredito)
+                        CancelarTransaccion(transaccion, TransaccionMessageConstants.PagoSobrepasaLimiteCredito);
+
+                    if (transaccion.Monto >= tarjetaCredito.PagoMinimo)
+                        tarjetaCredito.PagoMinimo = 0;
+
+                    else
+                        tarjetaCredito.PagoMinimo -= transaccion.Monto;
+
+                    if (transaccion.Monto >= tarjetaCredito.PagoCorte)
+                        tarjetaCredito.PagoCorte = 0;
+
+                    else
+                        tarjetaCredito.PagoCorte -= transaccion.Monto;
+
+                    masterRepository.TarjetaCredito.Update(tarjetaCredito);
                 }
+                
+                transaccion.Estado = EstadoTransaccion.Procesada;
+                masterRepository.Transaccion.Update(transaccion);
 
-                var transaccion = mapper.Map<Transaccion>(transaccionDto);
+                //Crear debito y debito de las transacciones
+                var historialTransaccionDebitada = new HistorialTransaccion() {
 
-                transaccion.FechaTransaccion = DateTime.Now;
-                transaccion.Estado = "Procesada";
-                /*
-                transaccion.ProductoOrigen = productoOrigen;
-                transaccion.ProductoDestino = productoDestino;
-                */
-                masterRepository.Transaccion.Create(transaccion);
+                    TransaccionId = transaccion.TransaccionId,
+                    //Transaccion = transaccion,
+
+                    ClienteId = productoOrigen.TitularId,
+                    //Cliente = masterRepository.Cliente.FindByCondition(c =>
+                        //c.ClienteId == productoOrigen.TitularId).First(),
+
+                    ProductoId = productoOrigen.ProductoId,
+                    //Producto = productoOrigen,
+
+                    Monto = transaccion.Monto,
+                    TipoTransaccion = TipoTransaccion.Debito,
+                    FechaTransaccion = DateTime.Now,
+                    Descripcion = transaccion.Descripcion
+                };
+
+                var historialTransaccionAcreditada = new HistorialTransaccion()
+                {
+                    TransaccionId = transaccion.TransaccionId,
+                    //Transaccion = transaccion,
+
+                    ClienteId = productoDestino.TitularId,
+                    //Cliente = masterRepository.Cliente.FindByCondition(c =>
+                    //    c.ClienteId == productoDestino.TitularId).First(),
+
+                    ProductoId = productoDestino.ProductoId,
+                    //Producto = productoDestino,
+
+                    Monto = transaccion.Monto,
+                    TipoTransaccion = TipoTransaccion.Credito,
+                    FechaTransaccion = DateTime.Now,
+                    Descripcion = transaccion.Descripcion
+                };
+
+                masterRepository.HistorialTransaccion.Create(historialTransaccionDebitada);
+                masterRepository.HistorialTransaccion.Create(historialTransaccionAcreditada);
+
                 masterRepository.Save();
 
                 return ServiceResult<bool>.ResultOk(true);
@@ -212,6 +229,76 @@ namespace CB.AplicationCore.Services
             }
         }
 
-        
+        private string GetDescripcion(Producto productoOrigen, Producto productoDestino)
+        {
+            string descripcion;
+
+            if (productoDestino.TipoProducto == ((int)TipoProducto.TarjetaCredito))
+                descripcion = "Pago a tarjeta de credito";
+
+            else if (productoOrigen.TitularId == productoDestino.TitularId)
+                descripcion = "Transferencia entre cuentas";
+
+            else
+                descripcion = "Trasferencia a terceros";
+            
+            return descripcion;
+        }
+
+        private Transaccion NewTransaccion(TransaccionDtoIn transaccionDto)
+        {
+            var transaccion = mapper.Map<Transaccion>(transaccionDto);
+
+            var productoOrigen = masterRepository.Producto.FindByCondition(p =>
+                p.ProductoId == transaccionDto.ProductoOrigenId).First();
+
+            var productoDestino = masterRepository.Producto.FindByCondition(p =>
+                p.ProductoId == transaccionDto.ProductoDestinoId).First();
+
+            ValidarTiposProductos(productoOrigen, productoDestino);
+
+            //transaccion.ProductoOrigen = productoOrigen;
+            //transaccion.ProductoDestino = productoDestino;
+
+            transaccion.FechaTransaccion = DateTime.Now;
+            transaccion.Estado = EstadoTransaccion.Pendiente;
+            transaccion.Descripcion = GetDescripcion(productoOrigen, productoDestino);
+            transaccion.RowUid = Guid.NewGuid();
+
+            Random random = new Random();
+            int numeroClave = random.Next(1, 10);
+            int clienteId = productoOrigen.TitularId;
+
+            var tarjetaClave = masterRepository.TarjetaClave.FindByCondition(t =>
+                t.ClienteId == clienteId && t.NumeroClave == numeroClave).FirstOrDefault();
+
+            transaccion.TarjetaClaveId = tarjetaClave.TarjetaClaveId;
+            //transaccion.TarjetaClave = tarjetaClave;
+
+            return transaccion;
+        }
+
+        private void ValidarTiposProductos(Producto productoOrigen, Producto productoDestino)
+        {
+            var tipoProducto = Convert.ToInt32(productoOrigen.TipoProducto);
+
+            if (!productoValidationService.IsExistingTipoProducto(tipoProducto))
+                throw new ValidationException(TransaccionMessageConstants.WrongTipoProductoOrigen);
+
+            tipoProducto = Convert.ToInt32(productoDestino.TipoProducto);
+
+            if (!productoValidationService.IsExistingTipoProducto(tipoProducto))
+                throw new ValidationException(TransaccionMessageConstants.WrongTipoProductoDestino);
+        }
+
+        private void CancelarTransaccion(Transaccion transaccion, string mensaje)
+        {
+            transaccion.Comentario = mensaje;
+            transaccion.Estado = EstadoTransaccion.Rechazada;
+            masterRepository.Transaccion.Update(transaccion);
+            masterRepository.Save();
+            throw new ValidationException(TransaccionMessageConstants.TransaccionRechazada + transaccion.Comentario);
+        }
+
     }
 }
